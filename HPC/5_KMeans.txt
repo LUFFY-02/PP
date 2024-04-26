@@ -1,0 +1,155 @@
+Sure, here's a basic implementation of K-Means clustering in C++ with OpenMP for parallelization:
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <limits>
+#include <omp.h>
+
+using namespace std;
+
+// Structure to represent a data point
+struct Point {
+    double x, y;
+};
+
+// Function to calculate Euclidean distance between two points
+double calculateDistance(const Point& p1, const Point& p2) {
+    return sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2));
+}
+
+// Function to find the index of the nearest centroid for a given point
+int findNearestCentroid(const Point& point, const vector<Point>& centroids) {
+    int nearestIndex = 0;
+    double minDistance = numeric_limits<double>::max();
+
+    // Iterate through centroids to find the nearest one
+    for (size_t i = 0; i < centroids.size(); ++i) {
+        double distance = calculateDistance(point, centroids[i]);
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearestIndex = i;
+        }
+    }
+
+    return nearestIndex;
+}
+
+// Function to compute the new centroids based on assigned points
+void updateCentroids(const vector<Point>& data, const vector<int>& assignments, vector<Point>& centroids, int k) {
+    vector<int> counts(k, 0);
+    vector<Point> newCentroids(k, {0.0, 0.0});
+
+    // Compute the sum of points assigned to each centroid
+    #pragma omp parallel for
+    for (size_t i = 0; i < data.size(); ++i) {
+        int cluster = assignments[i];
+        #pragma omp atomic
+        newCentroids[cluster].x += data[i].x;
+        #pragma omp atomic
+        newCentroids[cluster].y += data[i].y;
+        #pragma omp atomic
+        counts[cluster]++;
+    }
+
+    // Compute the average to obtain new centroids
+    for (int i = 0; i < k; ++i) {
+        if (counts[i] > 0) {
+            newCentroids[i].x /= counts[i];
+            newCentroids[i].y /= counts[i];
+        }
+    }
+
+    // Update centroids
+    centroids = move(newCentroids);
+}
+
+// Function to perform K-Means clustering
+void kmeans(const vector<Point>& data, int k, vector<Point>& centroids, int maxIterations) {
+    int n = data.size();
+    vector<int> assignments(n);
+
+    // Initialize centroids randomly
+    for (int i = 0; i < k; ++i) {
+        centroids.push_back(data[rand() % n]);
+    }
+
+    // Perform iterations
+    for (int iter = 0; iter < maxIterations; ++iter) {
+        // Assign each point to the nearest centroid
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            assignments[i] = findNearestCentroid(data[i], centroids);
+        }
+
+        // Update centroids based on assigned points
+        updateCentroids(data, assignments, centroids, k);
+    }
+}
+
+int main() {
+    // Example dataset
+    vector<Point> data = {
+        {1.0, 2.0}, {2.0, 3.0}, {3.0, 4.0}, {4.0, 5.0}, {5.0, 6.0},
+        {6.0, 7.0}, {7.0, 8.0}, {8.0, 9.0}, {9.0, 10.0}, {10.0, 11.0}
+    };
+
+    // Number of clusters
+    int k = 3;
+
+    // Maximum number of iterations
+    int maxIterations = 100;
+
+    // Centroids will be stored here
+    vector<Point> centroids;
+
+    // Perform K-Means clustering
+    kmeans(data, k, centroids, maxIterations);
+
+    // Output centroids
+    cout << "Centroids:\n";
+    for (size_t i = 0; i < centroids.size(); ++i) {
+        cout << "Cluster " << i + 1 << ": (" << centroids[i].x << ", " << centroids[i].y << ")\n";
+    }
+
+    return 0;
+}
+```
+
+This code includes the following steps:
+
+1. Define a `Point` structure to represent each data point, consisting of x and y coordinates.
+2. Implement functions to calculate Euclidean distance between two points (`calculateDistance`) and find the index of the nearest centroid for a given point (`findNearestCentroid`).
+3. Implement a function to update centroids based on assigned points (`updateCentroids`).
+4. Implement the `kmeans` function to perform K-Means clustering. This function initializes centroids randomly, iteratively assigns points to the nearest centroid, and updates centroids based on assigned points.
+5. In the `main` function, define the dataset, specify the number of clusters (`k`), and the maximum number of iterations (`maxIterations`). Call the `kmeans` function to perform clustering and output the centroids.
+
+
+________________________
+
+K-Means is an unsupervised machine learning algorithm used for clustering similar data points into groups or clusters. The goal of K-Means is to partition the data into K clusters where each data point belongs to the cluster with the nearest mean, minimizing the intra-cluster variance. It's one of the simplest and most popular clustering algorithms.
+
+Here are the main steps of the K-Means algorithm:
+
+1. **Choose the Number of Clusters (K)**: Determine the number of clusters you want to create. This is a crucial step, and the choice of K can significantly affect the clustering result. It's often determined based on domain knowledge or through techniques like the elbow method or silhouette analysis.
+
+2. **Initialize Cluster Centroids**: Randomly initialize K cluster centroids (points in the feature space). These centroids represent the centers of the initial clusters.
+
+3. **Assign Data Points to Nearest Cluster**: For each data point in the dataset, calculate its distance to each of the K cluster centroids. Assign the data point to the cluster whose centroid is closest to it. Typically, Euclidean distance is used as the distance metric, but other distance measures can also be used.
+
+4. **Update Cluster Centroids**: Once all data points are assigned to clusters, recalculate the centroids of the clusters. The new centroid of each cluster is computed as the mean of all data points assigned to that cluster.
+
+5. **Repeat Steps 3 and 4 Until Convergence**:
+    - Repeat the process of assigning data points to clusters and updating cluster centroids iteratively until one of the stopping criteria is met:
+        - Centroids do not change significantly between iterations.
+        - The maximum number of iterations is reached.
+        - The assignment of data points to clusters does not change between iterations.
+
+6. **Final Clustering**: After convergence, the data points are clustered into K clusters, and each data point belongs to the cluster with the nearest centroid.
+
+7. **Evaluate Clustering (Optional)**: Assess the quality of the clustering result using appropriate metrics such as the silhouette score, Davies–Bouldin index, or within-cluster sum of squares (WCSS). This step helps to determine the effectiveness of the clustering and the optimal number of clusters.
+
+8. **Interpret Results**: Analyze the clusters and interpret their meaning in the context of the problem domain. Visualization techniques such as scatter plots or cluster profiles can be used to understand the characteristics of each cluster and identify patterns in the data.
+
+By following these steps, the K-Means algorithm partitions the data into distinct clusters based on their similarity, facilitating further analysis and insights into the underlying structure of the data.

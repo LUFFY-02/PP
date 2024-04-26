@@ -1,0 +1,165 @@
+Sure, let's go through the code step by step:
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+#include <chrono>
+#include <omp.h>
+
+using namespace std;
+using namespace std::chrono;
+```
+
+These are the standard C++ library headers included for input/output, vectors, mathematical functions, timing measurements, and OpenMP for parallelization.
+
+```cpp
+// Point structure representing a data point in a multidimensional space
+struct Point {
+    vector<double> coordinates;
+    int label;
+
+    Point(vector<double> coords, int lbl) : coordinates(coords), label(lbl) {}
+};
+```
+
+Here, we define a `Point` struct representing a data point in a multidimensional space. It contains a vector of coordinates and an integer label. The constructor initializes the coordinates and label.
+
+```cpp
+// Function to calculate Euclidean distance between two points
+double euclideanDistance(const vector<double>& p1, const vector<double>& p2) {
+    double distance = 0.0;
+    int dim = p1.size();
+    for (int i = 0; i < dim; ++i) {
+        distance += pow(p1[i] - p2[i], 2);
+    }
+    return sqrt(distance);
+}
+```
+
+This function calculates the Euclidean distance between two points represented as vectors of coordinates.
+
+```cpp
+// Sequential KNN function
+vector<int> knnSequential(const vector<Point>& dataset, const vector<double>& query, int k) {
+    vector<pair<double, int>> distances; // Pair of distance and index
+    for (size_t i = 0; i < dataset.size(); ++i) {
+        double distance = euclideanDistance(dataset[i].coordinates, query);
+        distances.push_back({distance, i});
+    }
+
+    sort(distances.begin(), distances.end()); // Sort distances in ascending order
+
+    vector<int> nearest_labels;
+    for (int i = 0; i < k; ++i) {
+        nearest_labels.push_back(dataset[distances[i].second].label);
+    }
+
+    return nearest_labels;
+}
+```
+
+This function performs K-nearest neighbors (KNN) search sequentially. It calculates the Euclidean distance between the query point and each point in the dataset, stores the distances along with their indices, sorts the distances, and returns the labels of the k nearest points.
+
+```cpp
+// Parallel KNN function
+vector<int> knnParallel(const vector<Point>& dataset, const vector<double>& query, int k) {
+    vector<pair<double, int>> distances; // Pair of distance and index
+
+    #pragma omp parallel for
+    for (size_t i = 0; i < dataset.size(); ++i) {
+        double distance = euclideanDistance(dataset[i].coordinates, query);
+        #pragma omp critical
+        distances.push_back({distance, i});
+    }
+
+    sort(distances.begin(), distances.end()); // Sort distances in ascending order
+
+    vector<int> nearest_labels;
+    for (int i = 0; i < k; ++i) {
+        nearest_labels.push_back(dataset[distances[i].second].label);
+    }
+
+    return nearest_labels;
+}
+```
+
+This function performs K-nearest neighbors (KNN) search in parallel using OpenMP. It parallelizes the computation of distances between the query point and each point in the dataset. The distances are stored along with their indices, and then sorted. Finally, it returns the labels of the k nearest points.
+
+```cpp
+int main() {
+    // Generate sample dataset with 1000000 points in 2-dimensional space
+    vector<Point> dataset;
+    srand(time(NULL)); // Seed for random number generation
+    for (int i = 0; i < 1000000; ++i) {
+        vector<double> coordinates = {double(rand() % 1000), double(rand() % 100)};
+        int label = rand() % 2; // Random label 0 or 1
+        dataset.push_back(Point(coordinates, label));
+    }
+
+    // Set a query point in the same 2-dimensional space
+    vector<double> query = {50, 50}; // Query point
+    int k = 5; // Number of nearest neighbors to find
+```
+
+In the `main` function:
+
+- We generate a sample dataset with 1,000,000 points in 2-dimensional space. Each point has random coordinates and a random label (0 or 1).
+- We set a query point in the same 2-dimensional space.
+- We define the number of nearest neighbors to find (k = 5).
+
+```cpp
+    // Sequential execution
+    auto start_seq = high_resolution_clock::now();
+    vector<int> nearest_labels_seq = knnSequential(dataset, query, k);
+    auto stop_seq = high_resolution_clock::now();
+    auto duration_seq = duration_cast<milliseconds>(stop_seq - start_seq);
+    cout << "Sequential Execution Time: " << duration_seq.count() << " milliseconds" << endl;
+
+    // Parallel execution
+    auto start_par = high_resolution_clock::now();
+    vector<int> nearest_labels_par = knnParallel(dataset, query, k);
+    auto stop_par = high_resolution_clock::now();
+    auto duration_par = duration_cast<milliseconds>(
+
+stop_par - start_par);
+    cout << "Parallel Execution Time: " << duration_par.count() << " milliseconds" << endl;
+```
+
+Here, we measure the execution time for both the sequential and parallel versions of KNN search. We call the respective functions (`knnSequential` and `knnParallel`) and measure the time taken using `high_resolution_clock`.
+
+```cpp
+    // Output the results
+    cout << "Nearest Labels (Sequential): ";
+    for (int label : nearest_labels_seq) {
+        cout << label << " ";
+    }
+    cout << endl;
+
+    cout << "Nearest Labels (Parallel): ";
+    for (int label : nearest_labels_par) {
+        cout << label << " ";
+    }
+    cout << endl;
+
+    return 0;
+}
+```
+
+Finally, we output the labels of the k nearest points obtained from both the sequential and parallel executions.
+Certainly! In the context of the K-nearest neighbors (KNN) algorithm, "nearest labels" refers to the labels of the data points that are closest to the query point. Here's a breakdown of how it works:
+
+1. **Generate Sample Dataset**: Initially, you have a dataset consisting of data points, each with its coordinates and a label. This dataset serves as the training data for the KNN algorithm.
+
+2. **Set Query Point**: You specify a query point for which you want to find the nearest neighbors. This query point also has coordinates, but it may not have a label. The goal is to determine the labels of the nearest data points to this query point.
+
+3. **Calculate Distances**: The KNN algorithm calculates the distances between the query point and all the data points in the dataset. The distance metric used is typically Euclidean distance, which measures the straight-line distance between two points in a multidimensional space.
+
+4. **Find Nearest Neighbors**: After calculating the distances, the algorithm identifies the K nearest data points to the query point based on these distances. These K nearest neighbors are the ones with the smallest distances to the query point.
+
+5. **Extract Nearest Labels**: Finally, the algorithm extracts the labels of these nearest neighbors. These labels represent the categories or classes to which the nearest data points belong. In a classification problem, the label indicates the class to which each data point belongs.
+
+6. **Output Nearest Labels**: The algorithm outputs these nearest labels as the result of the KNN search. These labels provide information about the most similar data points to the query point and can be used for various purposes, such as classification, regression, or clustering.
+
+In summary, the "nearest labels" obtained from the KNN algorithm represent the classes or categories of the data points that are closest to the query point in the dataset. They help identify patterns or similarities between data points and make predictions based on the characteristics of neighboring points.
